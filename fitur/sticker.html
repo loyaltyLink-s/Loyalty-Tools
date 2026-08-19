@@ -166,6 +166,18 @@
     border-color: var(--cyan);
   }
 
+  .section-title {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: var(--text);
+    margin-bottom: 10px;
+    padding-top: 4px;
+    border-top: 1px solid var(--border);
+    padding-top: 16px;
+  }
+  .section-title:first-child { border-top: none; padding-top: 0; }
+
   .layer-chips {
     display: flex;
     gap: 6px;
@@ -186,6 +198,11 @@
     background: rgba(37, 244, 238, 0.12);
     border-color: var(--cyan);
     color: var(--cyan);
+  }
+  .chip.overlay-chip.active {
+    background: rgba(254, 44, 85, 0.12);
+    border-color: var(--pink);
+    color: var(--pink);
   }
 
   .layer-actions {
@@ -225,6 +242,16 @@
     margin-bottom: 16px;
   }
 
+  .empty-hint {
+    font-size: 12.5px;
+    color: var(--text-faint);
+    background: var(--surface-2);
+    border: 1px dashed var(--border);
+    padding: 10px 12px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+  }
+
   .btns {
     display: flex;
     gap: 10px;
@@ -255,6 +282,11 @@
   }
   .btn-secondary:hover { background: #26262d; }
 
+  .btn-secondary:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
   .note {
     font-size: 12.5px;
     color: var(--text-faint);
@@ -280,17 +312,16 @@
     <div class="panel">
       <div class="field">
         <label>Gambar</label>
-        <input type="file" id="imgInput" accept="image/*">
+        <input type="file" id="imgInput" accept="image/*" multiple>
       </div>
+      <p class="hint">Gambar pertama jadi <strong>latar belakang</strong> (tetap, tidak bisa digeser). Gambar berikutnya jadi <strong>overlay</strong> yang bisa digeser, di-zoom, dan diputar — tapi selalu berada di bawah lapisan teks.</p>
 
-      <div class="field">
-        <label>Teks</label>
-        <div class="layer-chips" id="layerChips"></div>
-        <textarea id="textInput" rows="2" placeholder="Tulis teks stiker...&#10;Tekan enter untuk baris baru"></textarea>
-        <div class="layer-actions">
-          <button class="btn-secondary" id="addTextBtn" type="button">+ Tambah Teks</button>
-          <button class="btn-secondary" id="removeTextBtn" type="button">Hapus Teks Ini</button>
-        </div>
+      <div class="section-title">Teks</div>
+      <div class="layer-chips" id="layerChips"></div>
+      <textarea id="textInput" rows="2" placeholder="Tulis teks stiker...&#10;Tekan enter untuk baris baru"></textarea>
+      <div class="layer-actions">
+        <button class="btn-secondary" id="addTextBtn" type="button">+ Tambah Teks</button>
+        <button class="btn-secondary" id="removeTextBtn" type="button">Hapus Teks Ini</button>
       </div>
       <p class="hint">Pilih chip teks di atas untuk edit teks itu. Seret di atas gambar untuk mengatur posisinya. Tekan enter di kolom teks untuk ganti baris.</p>
 
@@ -307,6 +338,26 @@
           <label>Warna outline</label>
           <input type="color" id="strokeInput" value="#000000">
         </div>
+      </div>
+
+      <div class="section-title">Gambar Overlay</div>
+      <div id="overlayEmptyHint" class="empty-hint">Belum ada gambar overlay. Upload gambar kedua (dan seterusnya) untuk menambahkan.</div>
+      <div id="overlayControls" style="display:none;">
+        <div class="layer-chips" id="overlayChips"></div>
+        <div class="row">
+          <div class="field">
+            <label>Zoom</label>
+            <input type="range" id="overlayScaleInput" min="0.2" max="3" step="0.01" value="1">
+          </div>
+          <div class="field">
+            <label>Putar</label>
+            <input type="range" id="overlayRotateInput" min="0" max="360" step="1" value="0">
+          </div>
+        </div>
+        <div class="layer-actions">
+          <button class="btn-secondary" id="removeOverlayBtn" type="button">Hapus Gambar Overlay Ini</button>
+        </div>
+        <p class="hint">Pilih chip gambar di atas, lalu seret di atas kanvas untuk memindahkannya, atau atur slider zoom/putar.</p>
       </div>
 
       <div class="btns">
@@ -344,12 +395,21 @@
   const addTextBtn = document.getElementById('addTextBtn');
   const removeTextBtn = document.getElementById('removeTextBtn');
 
+  const overlayEmptyHint = document.getElementById('overlayEmptyHint');
+  const overlayControls = document.getElementById('overlayControls');
+  const overlayChips = document.getElementById('overlayChips');
+  const overlayScaleInput = document.getElementById('overlayScaleInput');
+  const overlayRotateInput = document.getElementById('overlayRotateInput');
+  const removeOverlayBtn = document.getElementById('removeOverlayBtn');
+
   const SIZE = 512;
-  let userImage = null;
+  let userImage = null; // latar belakang, tetap & tidak interaktif
   let dragging = false;
   let dragOffset = { x: 0, y: 0 };
   let nextId = 1;
+  let nextOverlayId = 1;
 
+  // ==== Lapisan Teks ====
   function newLayer(text, y) {
     return {
       id: nextId++,
@@ -363,10 +423,31 @@
   }
 
   let layers = [ newLayer('TULIS TEKS', SIZE - 60) ];
-  let activeId = layers[0].id;
 
-  function getActive() {
-    return layers.find(l => l.id === activeId);
+  // ==== Lapisan Overlay Gambar ====
+  let overlays = []; // { id, img, x, y, scale, rotation, baseWidth, baseHeight }
+
+  // ==== Seleksi aktif untuk kontrol & drag ====
+  // dragTarget menentukan apa yang digeser saat kanvas di-drag
+  let dragTarget = { type: 'text', id: layers[0].id };
+  let lastTextId = layers[0].id;
+  let lastOverlayId = null;
+
+  function getTextById(id) {
+    return layers.find(l => l.id === id);
+  }
+  function getOverlayById(id) {
+    return overlays.find(o => o.id === id);
+  }
+  function getActiveTextForControls() {
+    return getTextById(lastTextId);
+  }
+  function getActiveOverlayForControls() {
+    return lastOverlayId ? getOverlayById(lastOverlayId) : null;
+  }
+  function getDragLayer() {
+    if (dragTarget.type === 'text') return getTextById(dragTarget.id);
+    return getOverlayById(dragTarget.id);
   }
 
   function drawImageContain(img) {
@@ -376,6 +457,15 @@
     const x = (SIZE - w) / 2;
     const y = (SIZE - h) / 2;
     ctx.drawImage(img, x, y, w, h);
+  }
+
+  function drawOverlay(o) {
+    ctx.save();
+    ctx.translate(o.x, o.y);
+    ctx.rotate(o.rotation * Math.PI / 180);
+    ctx.scale(o.scale, o.scale);
+    ctx.drawImage(o.img, -o.baseWidth / 2, -o.baseHeight / 2, o.baseWidth, o.baseHeight);
+    ctx.restore();
   }
 
   function drawTextLayer(layer) {
@@ -406,6 +496,7 @@
   function render() {
     ctx.clearRect(0, 0, SIZE, SIZE);
 
+    // 1. Latar belakang (paling bawah, tetap)
     if (userImage) {
       drawImageContain(userImage);
     } else {
@@ -418,26 +509,58 @@
       ctx.fillText('Upload gambar dulu', SIZE / 2, SIZE / 2);
     }
 
+    // 2. Overlay gambar (di atas latar belakang, di bawah teks)
+    overlays.forEach(drawOverlay);
+
+    // 3. Teks (selalu paling atas)
     layers.forEach(drawTextLayer);
   }
 
+  // ==== Chip UI ====
   function renderChips() {
     layerChips.innerHTML = '';
     layers.forEach((layer, i) => {
       const chip = document.createElement('div');
-      chip.className = 'chip' + (layer.id === activeId ? ' active' : '');
+      chip.className = 'chip' + (dragTarget.type === 'text' && dragTarget.id === layer.id ? ' active' : '');
       chip.textContent = 'Teks ' + (i + 1);
       chip.addEventListener('click', () => {
-        activeId = layer.id;
-        syncControlsToActive();
+        dragTarget = { type: 'text', id: layer.id };
+        lastTextId = layer.id;
+        syncControlsToActiveText();
         renderChips();
+        renderOverlayChips();
       });
       layerChips.appendChild(chip);
     });
   }
 
-  function syncControlsToActive() {
-    const layer = getActive();
+  function renderOverlayChips() {
+    overlayChips.innerHTML = '';
+    if (overlays.length === 0) {
+      overlayEmptyHint.style.display = 'block';
+      overlayControls.style.display = 'none';
+      return;
+    }
+    overlayEmptyHint.style.display = 'none';
+    overlayControls.style.display = 'block';
+
+    overlays.forEach((o, i) => {
+      const chip = document.createElement('div');
+      chip.className = 'chip overlay-chip' + (dragTarget.type === 'overlay' && dragTarget.id === o.id ? ' active' : '');
+      chip.textContent = 'Gambar ' + (i + 1);
+      chip.addEventListener('click', () => {
+        dragTarget = { type: 'overlay', id: o.id };
+        lastOverlayId = o.id;
+        syncControlsToActiveOverlay();
+        renderChips();
+        renderOverlayChips();
+      });
+      overlayChips.appendChild(chip);
+    });
+  }
+
+  function syncControlsToActiveText() {
+    const layer = getActiveTextForControls();
     if (!layer) return;
     textInput.value = layer.text;
     sizeInput.value = layer.size;
@@ -445,8 +568,8 @@
     strokeInput.value = layer.stroke;
   }
 
-  function syncActiveFromControls() {
-    const layer = getActive();
+  function syncActiveTextFromControls() {
+    const layer = getActiveTextForControls();
     if (!layer) return;
     layer.text = textInput.value;
     layer.size = parseInt(sizeInput.value, 10);
@@ -455,27 +578,74 @@
     render();
   }
 
+  function syncControlsToActiveOverlay() {
+    const o = getActiveOverlayForControls();
+    if (!o) return;
+    overlayScaleInput.value = o.scale;
+    overlayRotateInput.value = o.rotation;
+  }
+
+  function syncActiveOverlayFromControls() {
+    const o = getActiveOverlayForControls();
+    if (!o) return;
+    o.scale = parseFloat(overlayScaleInput.value);
+    o.rotation = parseFloat(overlayRotateInput.value);
+    render();
+  }
+
+  // ==== Upload Gambar: pertama = background, berikutnya = overlay ====
   imgInput.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const img = new Image();
-    img.onload = () => {
-      userImage = img;
-      render();
-    };
-    img.src = URL.createObjectURL(file);
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+
+    files.forEach(file => {
+      const img = new Image();
+      img.onload = () => {
+        if (!userImage) {
+          userImage = img;
+        } else {
+          const ratio = Math.min((SIZE * 0.6) / img.width, (SIZE * 0.6) / img.height);
+          const overlay = {
+            id: nextOverlayId++,
+            img: img,
+            x: SIZE / 2,
+            y: SIZE / 2,
+            scale: 1,
+            rotation: 0,
+            baseWidth: img.width * ratio,
+            baseHeight: img.height * ratio
+          };
+          overlays.push(overlay);
+          dragTarget = { type: 'overlay', id: overlay.id };
+          lastOverlayId = overlay.id;
+          syncControlsToActiveOverlay();
+          renderChips();
+          renderOverlayChips();
+        }
+        render();
+      };
+      img.src = URL.createObjectURL(file);
+    });
+
+    imgInput.value = '';
   });
 
   [textInput, sizeInput, colorInput, strokeInput].forEach(el => {
-    el.addEventListener('input', syncActiveFromControls);
+    el.addEventListener('input', syncActiveTextFromControls);
+  });
+
+  [overlayScaleInput, overlayRotateInput].forEach(el => {
+    el.addEventListener('input', syncActiveOverlayFromControls);
   });
 
   addTextBtn.addEventListener('click', () => {
     const layer = newLayer('TEKS BARU', SIZE / 2);
     layers.push(layer);
-    activeId = layer.id;
-    syncControlsToActive();
+    dragTarget = { type: 'text', id: layer.id };
+    lastTextId = layer.id;
+    syncControlsToActiveText();
     renderChips();
+    renderOverlayChips();
     render();
   });
 
@@ -484,14 +654,35 @@
       alert('Minimal harus ada 1 teks.');
       return;
     }
-    layers = layers.filter(l => l.id !== activeId);
-    activeId = layers[layers.length - 1].id;
-    syncControlsToActive();
+    const removingId = lastTextId;
+    layers = layers.filter(l => l.id !== removingId);
+    lastTextId = layers[layers.length - 1].id;
+    if (dragTarget.type === 'text' && dragTarget.id === removingId) {
+      dragTarget = { type: 'text', id: lastTextId };
+    }
+    syncControlsToActiveText();
     renderChips();
+    renderOverlayChips();
     render();
   });
 
-  // ==== Geser teks aktif (mouse & touch) ====
+  removeOverlayBtn.addEventListener('click', () => {
+    if (!lastOverlayId) return;
+    const removingId = lastOverlayId;
+    overlays = overlays.filter(o => o.id !== removingId);
+    lastOverlayId = overlays.length > 0 ? overlays[overlays.length - 1].id : null;
+    if (dragTarget.type === 'overlay' && dragTarget.id === removingId) {
+      dragTarget = lastOverlayId
+        ? { type: 'overlay', id: lastOverlayId }
+        : { type: 'text', id: lastTextId };
+    }
+    if (lastOverlayId) syncControlsToActiveOverlay();
+    renderChips();
+    renderOverlayChips();
+    render();
+  });
+
+  // ==== Geser lapisan aktif (mouse & touch) — teks ATAU overlay gambar ====
   function getCanvasPos(e) {
     const rect = canvas.getBoundingClientRect();
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -503,7 +694,7 @@
   }
 
   function pointerDown(e) {
-    const layer = getActive();
+    const layer = getDragLayer();
     if (!layer) return;
     const pos = getCanvasPos(e);
     dragging = true;
@@ -514,7 +705,7 @@
 
   function pointerMove(e) {
     if (!dragging) return;
-    const layer = getActive();
+    const layer = getDragLayer();
     if (!layer) return;
     const pos = getCanvasPos(e);
     layer.x = pos.x - dragOffset.x;
@@ -574,8 +765,9 @@
     }, 'image/webp', 0.92);
   });
 
-  syncControlsToActive();
+  syncControlsToActiveText();
   renderChips();
+  renderOverlayChips();
   render();
 </script>
 
