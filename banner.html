@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Banner Slider</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #0c0c0e;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 20px;
+  }
+
+  .banner-wrap {
+    width: 100%;
+    max-width: 1080px;
+  }
+
+  .banner {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1080 / 390;
+    max-height: 390px;
+    overflow: hidden;
+    border-radius: 16px;
+    background: #141416;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    cursor: grab;
+    user-select: none;
+    touch-action: pan-y;
+  }
+  .banner.dragging { cursor: grabbing; }
+
+  .track {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    transition: transform 0.5s ease;
+    will-change: transform;
+  }
+
+  .slide {
+    flex: 0 0 100%;
+    height: 100%;
+    position: relative;
+  }
+
+  .slide img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    pointer-events: none;
+    -webkit-user-drag: none;
+  }
+
+  /* Titik indikator */
+  .dots {
+    position: absolute;
+    bottom: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 8px;
+    z-index: 5;
+  }
+  .dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.35);
+    cursor: pointer;
+    transition: background 0.2s, transform 0.2s;
+  }
+  .dot.active {
+    background: linear-gradient(135deg, #25f4ee 0%, #fe2c55 100%);
+    transform: scale(1.25);
+  }
+
+</style>
+</head>
+<body>
+
+<div class="banner-wrap">
+  <div class="banner" id="banner">
+    <div class="track" id="track">
+      <div class="slide"><img src="assets/banner/banner1.png" alt="Banner 1"></div>
+      <div class="slide"><img src="assets/banner/banner2.png" alt="Banner 2"></div>
+      <div class="slide"><img src="assets/banner/banner3.png" alt="Banner 3"></div>
+    </div>
+
+    <div class="dots" id="dots"></div>
+  </div>
+</div>
+
+<script>
+  const track = document.getElementById('track');
+  const banner = document.getElementById('banner');
+  const dotsWrap = document.getElementById('dots');
+  const slides = document.querySelectorAll('.slide');
+  const total = slides.length;
+
+  let index = 0;
+  let autoTimer = null;
+  const AUTO_DELAY = 3500; // jeda auto slide (ms)
+
+  // Buat titik indikator
+  slides.forEach((_, i) => {
+    const dot = document.createElement('div');
+    dot.classList.add('dot');
+    if (i === 0) dot.classList.add('active');
+    dot.addEventListener('click', () => goTo(i));
+    dotsWrap.appendChild(dot);
+  });
+  const dots = document.querySelectorAll('.dot');
+
+  function updateSlide(withTransition = true) {
+    track.style.transition = withTransition ? 'transform 0.5s ease' : 'none';
+    track.style.transform = `translateX(-${index * 100}%)`;
+    dots.forEach((d, i) => d.classList.toggle('active', i === index));
+  }
+
+  function goTo(i) {
+    index = (i + total) % total;
+    updateSlide();
+    resetAuto();
+  }
+
+  function next() { goTo(index + 1); }
+  function prev() { goTo(index - 1); }
+
+  function startAuto() {
+    autoTimer = setInterval(next, AUTO_DELAY);
+  }
+  function resetAuto() {
+    clearInterval(autoTimer);
+    startAuto();
+  }
+
+  // ==== Drag / swipe manual (mouse & touch) ====
+  let startX = 0;
+  let currentTranslate = 0;
+  let isDragging = false;
+
+  function getX(e) {
+    return e.touches ? e.touches[0].clientX : e.clientX;
+  }
+
+  function dragStart(e) {
+    isDragging = true;
+    startX = getX(e);
+    banner.classList.add('dragging');
+    track.style.transition = 'none';
+    clearInterval(autoTimer);
+  }
+
+  function dragMove(e) {
+    if (!isDragging) return;
+    const dx = getX(e) - startX;
+    const percent = (dx / banner.offsetWidth) * 100;
+    currentTranslate = -index * 100 + percent;
+    track.style.transform = `translateX(${currentTranslate}%)`;
+  }
+
+  function dragEnd(e) {
+    if (!isDragging) return;
+    isDragging = false;
+    banner.classList.remove('dragging');
+
+    const dx = (e.changedTouches ? e.changedTouches[0].clientX : e.clientX) - startX;
+    const threshold = banner.offsetWidth * 0.15;
+
+    if (dx < -threshold) {
+      next();
+    } else if (dx > threshold) {
+      prev();
+    } else {
+      updateSlide(); // kembali ke posisi semula
+      resetAuto();
+    }
+  }
+
+  banner.addEventListener('mousedown', dragStart);
+  window.addEventListener('mousemove', dragMove);
+  window.addEventListener('mouseup', dragEnd);
+
+  banner.addEventListener('touchstart', dragStart, { passive: true });
+  banner.addEventListener('touchmove', dragMove, { passive: true });
+  banner.addEventListener('touchend', dragEnd);
+
+  // Jeda auto-slide saat hover (desktop)
+  banner.addEventListener('mouseenter', () => clearInterval(autoTimer));
+  banner.addEventListener('mouseleave', () => resetAuto());
+
+  updateSlide(false);
+  startAuto();
+</script>
+
+</body>
+</html>
