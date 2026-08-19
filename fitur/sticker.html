@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Buat Stiker</title>
+<style>
+  :root {
+    --bg: #0c0c0e;
+    --surface: #17171b;
+    --surface-2: #1e1e24;
+    --border: rgba(255, 255, 255, 0.08);
+    --text: #f4f4f5;
+    --text-dim: #9a9aa2;
+    --text-faint: #6b6b74;
+    --pink: #fe2c55;
+    --cyan: #25f4ee;
+    --gradient: linear-gradient(135deg, #25f4ee 0%, #fe2c55 100%);
+    --radius: 16px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    background-image:
+      radial-gradient(circle at 10% 0%, rgba(37, 244, 238, 0.06), transparent 40%),
+      radial-gradient(circle at 90% 0%, rgba(254, 44, 85, 0.06), transparent 40%);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 76px 16px 48px;
+  }
+
+  .wrap {
+    max-width: 780px;
+    margin: 0 auto;
+  }
+
+  .back-link {
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    z-index: 50;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 9px 16px;
+    border-radius: 999px;
+    transition: color 0.2s, border-color 0.2s;
+  }
+  .back-link:hover { color: var(--text); border-color: var(--cyan); }
+
+  h1 {
+    font-size: 22px;
+    margin-bottom: 4px;
+    background: var(--gradient);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    display: inline-block;
+  }
+  .sub {
+    color: var(--text-dim);
+    font-size: 14px;
+    margin-bottom: 20px;
+  }
+
+  .layout {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .canvas-box {
+    background:
+      linear-gradient(45deg, #232327 25%, transparent 25%),
+      linear-gradient(-45deg, #232327 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #232327 75%),
+      linear-gradient(-45deg, transparent 75%, #232327 75%);
+    background-color: #1a1a1e;
+    background-size: 20px 20px;
+    background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+    border-radius: var(--radius);
+    overflow: hidden;
+    width: 320px;
+    height: 320px;
+    flex-shrink: 0;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+    border: 1px solid var(--border);
+  }
+
+  #canvas {
+    width: 320px;
+    height: 320px;
+    display: block;
+    cursor: grab;
+    touch-action: none;
+  }
+  #canvas.dragging { cursor: grabbing; }
+
+  .panel {
+    flex: 1;
+    min-width: 260px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+  }
+
+  .field { margin-bottom: 16px; }
+  .field label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+  }
+
+  input[type="file"] {
+    width: 100%;
+    font-size: 13px;
+    color: var(--text-dim);
+  }
+
+  input[type="text"] {
+    width: 100%;
+    padding: 9px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+    background: var(--surface-2);
+    color: var(--text);
+  }
+
+  textarea {
+    width: 100%;
+    padding: 9px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    resize: vertical;
+    background: var(--surface-2);
+    color: var(--text);
+  }
+
+  textarea:focus, input[type="text"]:focus {
+    outline: none;
+    border-color: var(--cyan);
+  }
+
+  .layer-chips {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+  }
+  .chip {
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: var(--surface-2);
+    color: var(--text-dim);
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 2px solid transparent;
+  }
+  .chip.active {
+    background: rgba(37, 244, 238, 0.12);
+    border-color: var(--cyan);
+    color: var(--cyan);
+  }
+
+  .layer-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .layer-actions button {
+    padding: 7px 12px;
+    font-size: 12.5px;
+  }
+
+  input[type="range"] {
+    width: 100%;
+    accent-color: var(--pink);
+  }
+  input[type="color"] {
+    width: 44px;
+    height: 32px;
+    border: none;
+    padding: 0;
+    background: none;
+    cursor: pointer;
+  }
+
+  .row {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+  }
+  .row > div { flex: 1; }
+
+  .hint {
+    font-size: 12px;
+    color: var(--text-faint);
+    margin-top: -8px;
+    margin-bottom: 16px;
+  }
+
+  .btns {
+    display: flex;
+    gap: 10px;
+    margin-top: 6px;
+    flex-wrap: wrap;
+  }
+
+  button {
+    border: none;
+    border-radius: 8px;
+    padding: 11px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s, background 0.2s;
+  }
+
+  .btn-primary {
+    background: var(--gradient);
+    color: #0c0c0e;
+  }
+  .btn-primary:hover { opacity: 0.88; }
+
+  .btn-secondary {
+    background: var(--surface-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn-secondary:hover { background: #26262d; }
+
+  .note {
+    font-size: 12.5px;
+    color: var(--text-faint);
+    margin-top: 14px;
+    line-height: 1.5;
+  }
+
+  .note a { color: var(--cyan); }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <a href="../index.html" class="back-link">&larr; Kembali</a>
+  <h1>Buat Stiker</h1>
+  <p class="sub">Upload gambar, tambahkan teks, lalu unduh hasilnya.</p>
+
+  <div class="layout">
+    <div class="canvas-box">
+      <canvas id="canvas" width="512" height="512"></canvas>
+    </div>
+
+    <div class="panel">
+      <div class="field">
+        <label>Gambar</label>
+        <input type="file" id="imgInput" accept="image/*">
+      </div>
+
+      <div class="field">
+        <label>Teks</label>
+        <div class="layer-chips" id="layerChips"></div>
+        <textarea id="textInput" rows="2" placeholder="Tulis teks stiker...&#10;Tekan enter untuk baris baru"></textarea>
+        <div class="layer-actions">
+          <button class="btn-secondary" id="addTextBtn" type="button">+ Tambah Teks</button>
+          <button class="btn-secondary" id="removeTextBtn" type="button">Hapus Teks Ini</button>
+        </div>
+      </div>
+      <p class="hint">Pilih chip teks di atas untuk edit teks itu. Seret di atas gambar untuk mengatur posisinya. Tekan enter di kolom teks untuk ganti baris.</p>
+
+      <div class="row">
+        <div class="field">
+          <label>Ukuran teks</label>
+          <input type="range" id="sizeInput" min="16" max="90" value="42">
+        </div>
+        <div class="field">
+          <label>Warna teks</label>
+          <input type="color" id="colorInput" value="#ffffff">
+        </div>
+        <div class="field">
+          <label>Warna outline</label>
+          <input type="color" id="strokeInput" value="#000000">
+        </div>
+      </div>
+
+      <div class="btns">
+        <button class="btn-secondary" id="downloadPng">Unduh PNG</button>
+        <button class="btn-primary" id="downloadWebp">Unduh WEBP (siap Sticker WA)</button>
+        <button class="btn-primary" id="shareBtn">Kirim ke Aplikasi Stiker</button>
+      </div>
+
+      <p class="note" id="noteText">
+        File WEBP sudah berukuran 512×512 sesuai standar stiker WhatsApp.
+        <strong>Cara paling aman:</strong> klik <strong>"Unduh PNG"</strong>, lalu buka aplikasi
+        <em>Sticker Maker</em> secara manual → pilih menu "buat paket baru" / "+" → "pilih dari galeri" → ambil gambar yang tadi diunduh.
+        Tombol "Kirim ke Aplikasi Stiker" bisa dicoba juga, tapi kalau muncul pesan
+        <em>"invalid sticker pack file"</em>, itu artinya aplikasinya salah mengira file ini adalah paket stiker jadi — gunakan cara unduh manual di atas.
+        Belum punya aplikasinya? Cari "Sticker Maker" di
+        <a href="https://play.google.com/store/search?q=sticker%20maker%20whatsapp&c=apps" target="_blank" rel="noopener">Play Store</a>
+        atau <a href="https://apps.apple.com/search?term=sticker%20maker" target="_blank" rel="noopener">App Store</a>.
+      </p>
+    </div>
+  </div>
+</div>
+
+<script>
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  const imgInput = document.getElementById('imgInput');
+  const textInput = document.getElementById('textInput');
+  const sizeInput = document.getElementById('sizeInput');
+  const colorInput = document.getElementById('colorInput');
+  const strokeInput = document.getElementById('strokeInput');
+  const downloadPngBtn = document.getElementById('downloadPng');
+  const downloadWebpBtn = document.getElementById('downloadWebp');
+  const shareBtn = document.getElementById('shareBtn');
+  const layerChips = document.getElementById('layerChips');
+  const addTextBtn = document.getElementById('addTextBtn');
+  const removeTextBtn = document.getElementById('removeTextBtn');
+
+  const SIZE = 512;
+  let userImage = null;
+  let dragging = false;
+  let dragOffset = { x: 0, y: 0 };
+  let nextId = 1;
+
+  function newLayer(text, y) {
+    return {
+      id: nextId++,
+      text: text,
+      x: SIZE / 2,
+      y: y,
+      size: 42,
+      color: '#ffffff',
+      stroke: '#000000'
+    };
+  }
+
+  let layers = [ newLayer('TULIS TEKS', SIZE - 60) ];
+  let activeId = layers[0].id;
+
+  function getActive() {
+    return layers.find(l => l.id === activeId);
+  }
+
+  function drawImageContain(img) {
+    const ratio = Math.min(SIZE / img.width, SIZE / img.height);
+    const w = img.width * ratio;
+    const h = img.height * ratio;
+    const x = (SIZE - w) / 2;
+    const y = (SIZE - h) / 2;
+    ctx.drawImage(img, x, y, w, h);
+  }
+
+  function drawTextLayer(layer) {
+    const text = layer.text;
+    if (!text || !text.trim()) return;
+
+    const lines = text.split('\n');
+    const lineHeight = layer.size * 1.15;
+    const totalHeight = lines.length * lineHeight;
+    const startY = layer.y - totalHeight / 2 + lineHeight / 2;
+
+    ctx.font = `900 ${layer.size}px Segoe UI, Arial, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineJoin = 'round';
+    ctx.miterLimit = 2;
+    ctx.lineWidth = layer.size / 7;
+    ctx.strokeStyle = layer.stroke;
+    ctx.fillStyle = layer.color;
+
+    lines.forEach((line, i) => {
+      const ly = startY + i * lineHeight;
+      ctx.strokeText(line, layer.x, ly);
+      ctx.fillText(line, layer.x, ly);
+    });
+  }
+
+  function render() {
+    ctx.clearRect(0, 0, SIZE, SIZE);
+
+    if (userImage) {
+      drawImageContain(userImage);
+    } else {
+      ctx.fillStyle = '#f0f0f0';
+      ctx.fillRect(0, 0, SIZE, SIZE);
+      ctx.fillStyle = '#aaa';
+      ctx.font = '20px Segoe UI, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillText('Upload gambar dulu', SIZE / 2, SIZE / 2);
+    }
+
+    layers.forEach(drawTextLayer);
+  }
+
+  function renderChips() {
+    layerChips.innerHTML = '';
+    layers.forEach((layer, i) => {
+      const chip = document.createElement('div');
+      chip.className = 'chip' + (layer.id === activeId ? ' active' : '');
+      chip.textContent = 'Teks ' + (i + 1);
+      chip.addEventListener('click', () => {
+        activeId = layer.id;
+        syncControlsToActive();
+        renderChips();
+      });
+      layerChips.appendChild(chip);
+    });
+  }
+
+  function syncControlsToActive() {
+    const layer = getActive();
+    if (!layer) return;
+    textInput.value = layer.text;
+    sizeInput.value = layer.size;
+    colorInput.value = layer.color;
+    strokeInput.value = layer.stroke;
+  }
+
+  function syncActiveFromControls() {
+    const layer = getActive();
+    if (!layer) return;
+    layer.text = textInput.value;
+    layer.size = parseInt(sizeInput.value, 10);
+    layer.color = colorInput.value;
+    layer.stroke = strokeInput.value;
+    render();
+  }
+
+  imgInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const img = new Image();
+    img.onload = () => {
+      userImage = img;
+      render();
+    };
+    img.src = URL.createObjectURL(file);
+  });
+
+  [textInput, sizeInput, colorInput, strokeInput].forEach(el => {
+    el.addEventListener('input', syncActiveFromControls);
+  });
+
+  addTextBtn.addEventListener('click', () => {
+    const layer = newLayer('TEKS BARU', SIZE / 2);
+    layers.push(layer);
+    activeId = layer.id;
+    syncControlsToActive();
+    renderChips();
+    render();
+  });
+
+  removeTextBtn.addEventListener('click', () => {
+    if (layers.length <= 1) {
+      alert('Minimal harus ada 1 teks.');
+      return;
+    }
+    layers = layers.filter(l => l.id !== activeId);
+    activeId = layers[layers.length - 1].id;
+    syncControlsToActive();
+    renderChips();
+    render();
+  });
+
+  // ==== Geser teks aktif (mouse & touch) ====
+  function getCanvasPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    return {
+      x: (clientX - rect.left) * (SIZE / rect.width),
+      y: (clientY - rect.top) * (SIZE / rect.height)
+    };
+  }
+
+  function pointerDown(e) {
+    const layer = getActive();
+    if (!layer) return;
+    const pos = getCanvasPos(e);
+    dragging = true;
+    dragOffset.x = pos.x - layer.x;
+    dragOffset.y = pos.y - layer.y;
+    canvas.classList.add('dragging');
+  }
+
+  function pointerMove(e) {
+    if (!dragging) return;
+    const layer = getActive();
+    if (!layer) return;
+    const pos = getCanvasPos(e);
+    layer.x = pos.x - dragOffset.x;
+    layer.y = pos.y - dragOffset.y;
+    render();
+  }
+
+  function pointerUp() {
+    dragging = false;
+    canvas.classList.remove('dragging');
+  }
+
+  canvas.addEventListener('mousedown', pointerDown);
+  window.addEventListener('mousemove', pointerMove);
+  window.addEventListener('mouseup', pointerUp);
+
+  canvas.addEventListener('touchstart', pointerDown, { passive: true });
+  canvas.addEventListener('touchmove', pointerMove, { passive: true });
+  canvas.addEventListener('touchend', pointerUp);
+
+  // ==== Unduh ====
+  function download(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  downloadPngBtn.addEventListener('click', () => {
+    canvas.toBlob((blob) => download(blob, 'stiker.png'), 'image/png');
+  });
+
+  downloadWebpBtn.addEventListener('click', () => {
+    canvas.toBlob((blob) => download(blob, 'stiker.webp'), 'image/webp', 0.92);
+  });
+
+  shareBtn.addEventListener('click', () => {
+    canvas.toBlob(async (blob) => {
+      const file = new File([blob], 'stiker.webp', { type: 'image/webp' });
+
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({
+            files: [file],
+            title: 'Stiker',
+          });
+        } catch (err) {
+          // Dibatalkan oleh user, tidak perlu ditangani
+        }
+      } else {
+        // Fallback: browser/perangkat tidak mendukung share file
+        download(blob, 'stiker.webp');
+        alert('Perangkat/browser ini belum mendukung bagikan langsung. File WEBP sudah diunduh — buka manual lewat aplikasi Sticker Maker.');
+      }
+    }, 'image/webp', 0.92);
+  });
+
+  syncControlsToActive();
+  renderChips();
+  render();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pembuat Stiker Teks Meme</title>
+  <style>
+    :root {
+      --bg: #0c0c0e;
+      --surface: #17171b;
+      --surface-2: #1e1e24;
+      --border: rgba(255, 255, 255, 0.08);
+      --text: #f4f4f5;
+      --text-dim: #9a9aa2;
+      --text-faint: #6b6b74;
+      --pink: #fe2c55;
+      --cyan: #25f4ee;
+      --gradient: linear-gradient(135deg, #25f4ee 0%, #fe2c55 100%);
+      --radius: 16px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      background-image:
+        radial-gradient(circle at 10% 0%, rgba(37, 244, 238, 0.06), transparent 40%),
+        radial-gradient(circle at 90% 0%, rgba(254, 44, 85, 0.06), transparent 40%);
+      color: var(--text);
+      padding: 76px 20px 20px;
+    }
+
+    .back-link {
+      position: fixed;
+      top: 16px;
+      left: 16px;
+      z-index: 50;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 600;
+      padding: 9px 16px;
+      border-radius: 999px;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    .back-link:hover { color: var(--text); border-color: var(--cyan); }
+
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 24px;
+      border-radius: var(--radius);
+    }
+
+    h1 {
+      font-size: 20px;
+      margin-bottom: 16px;
+      text-align: center;
+      background: var(--gradient);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    label {
+      display: block;
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: var(--text-dim);
+    }
+
+    textarea {
+      width: 100%;
+      height: 100px;
+      padding: 12px;
+      font-family: Arial, sans-serif;
+      font-size: 16px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      resize: vertical;
+      outline: none;
+      background: var(--surface-2);
+      color: var(--text);
+    }
+
+    textarea:focus {
+      border-color: var(--cyan);
+    }
+
+    .hint {
+      font-size: 12px;
+      color: var(--text-faint);
+      margin-top: 4px;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .controls div {
+      flex: 1;
+      min-width: 140px;
+    }
+
+    select {
+      width: 100%;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      font-size: 14px;
+      background: var(--surface-2);
+      color: var(--text);
+    }
+
+    .preview-box {
+      text-align: center;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      padding: 20px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+    }
+
+    canvas {
+      max-width: 100%;
+      height: auto;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+      background: #fff;
+    }
+
+    .btn-action {
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 12px;
+      font-size: 15px;
+      font-weight: 600;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      text-align: center;
+      text-decoration: none;
+      transition: opacity 0.2s, background 0.2s;
+    }
+
+    .btn-download {
+      background: var(--gradient);
+      color: #0c0c0e;
+    }
+
+    .btn-download:hover {
+      opacity: 0.88;
+    }
+
+    .btn-back {
+      background: var(--surface-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .btn-back:hover {
+      background: #26262d;
+    }
+  </style>
+</head>
+<body>
+
+  <a href="../index.html" class="back-link">&larr; Kembali</a>
+
+  <div class="container">
+    <h1>Buat Stiker Teks Meme</h1>
+
+    <div class="form-group">
+      <label for="textInput">Ketik Teks Stiker:</label>
+      <textarea id="textInput" placeholder="Ketik kalimat di sini...">buang&#10;buang&#10;time.</textarea>
+      <p class="hint">💡 Tips: Ketik <b>(t)</b> untuk membuat kata/spasi tidak kelihatan (transparan).</p>
+    </div>
+
+    <div class="controls">
+      <div>
+        <label for="modeOption">Mode Layout:</label>
+        <select id="modeOption">
+          <option value="manual" selected>Manual (Gunakan Enter)</option>
+          <option value="auto">Otomatis Kiri-Kanan (2 Kata)</option>
+        </select>
+      </div>
+      <div>
+        <label for="bgOption">Latar Belakang:</label>
+        <select id="bgOption">
+          <option value="white" selected>Putih (Seperti Meme)</option>
+          <option value="transparent">Transparan (Stiker WhatsApp)</option>
+        </select>
+      </div>
+      <div>
+        <label for="blurOption">Efek Blur Meme:</label>
+        <select id="blurOption">
+          <option value="1.2" selected>Sedikit Blur (Otentik)</option>
+          <option value="0">Tanpa Blur (Tajam)</option>
+          <option value="2.5">Blur Tinggi</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="preview-box">
+      <canvas id="stickerCanvas" width="512" height="512"></canvas>
+    </div>
+
+    <div class="btn-action">
+      <button id="downloadBtn" class="btn btn-download">Unduh Stiker (PNG)</button>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('stickerCanvas');
+    const ctx = canvas.getContext('2d');
+    const textInput = document.getElementById('textInput');
+    const modeOption = document.getElementById('modeOption');
+    const bgOption = document.getElementById('bgOption');
+    const blurOption = document.getElementById('blurOption');
+    const downloadBtn = document.getElementById('downloadBtn');
+
+    function drawSticker() {
+      // Clear canvas
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Set Background
+      if (bgOption.value === 'white') {
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+
+      const rawText = textInput.value;
+      if (!rawText.trim()) return;
+
+      // Blur Filter Effect
+      const blurVal = parseFloat(blurOption.value);
+      ctx.filter = blurVal > 0 ? `blur(${blurVal}px)` : 'none';
+
+      const mode = modeOption.value;
+
+      if (mode === 'manual') {
+        // --- MODE MANUAL (DEFAULT) ---
+        const lines = rawText.split('\n');
+        const fontSize = 85; 
+        const lineHeight = fontSize * 1.05;
+        
+        ctx.font = `bold ${fontSize}px Arial, "Helvetica Neue", sans-serif`;
+        ctx.fillStyle = '#0a0a0a';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+
+        const startX = 40;
+        const totalTextHeight = lines.length * lineHeight;
+        let startY = (canvas.height - totalTextHeight) / 2;
+        if (startY < 40) startY = 40;
+
+        lines.forEach((line, index) => {
+          // Ganti (t) atau (T) menjadi string kosong agar tidak dicetak
+          const cleanLine = line.replace(/\(t\)/gi, '');
+          ctx.fillText(cleanLine, startX, startY + (index * lineHeight));
+        });
+
+      } else if (mode === 'auto') {
+        // --- MODE OTOMATIS KIRI-KANAN ---
+        const words = rawText.trim().split(/\s+/);
+        const lines = [];
+        for (let i = 0; i < words.length; i += 2) {
+          lines.push(words.slice(i, i + 2));
+        }
+
+        const fontSize = 75;
+        const lineHeight = fontSize * 1.15;
+        ctx.font = `bold ${fontSize}px Arial, "Helvetica Neue", sans-serif`;
+        ctx.fillStyle = '#0a0a0a';
+        ctx.textBaseline = 'middle';
+
+        const paddingX = 35;
+        const leftX = paddingX;
+        const rightX = canvas.width - paddingX;
+
+        const totalHeight = lines.length * lineHeight;
+        let startY = (canvas.height - totalHeight) / 2 + (lineHeight / 2);
+
+        lines.forEach((lineWords, lineIndex) => {
+          const currentY = startY + (lineIndex * lineHeight);
+
+          // Kata Kiri
+          const wordLeft = lineWords[0] ? lineWords[0].replace(/\(t\)/gi, '') : '';
+          if (wordLeft) {
+            ctx.textAlign = 'left';
+            ctx.fillText(wordLeft, leftX, currentY);
+          }
+
+          // Kata Kanan (jika ada)
+          if (lineWords.length === 2) {
+            const wordRight = lineWords[1].replace(/\(t\)/gi, '');
+            if (wordRight) {
+              ctx.textAlign = 'right';
+              ctx.fillText(wordRight, rightX, currentY);
+            }
+          }
+        });
+      }
+
+      // Reset filter
+      ctx.filter = 'none';
+    }
+
+    // Event Listeners
+    textInput.addEventListener('input', drawSticker);
+    modeOption.addEventListener('change', drawSticker);
+    bgOption.addEventListener('change', drawSticker);
+    blurOption.addEventListener('change', drawSticker);
+
+    downloadBtn.addEventListener('click', () => {
+      const link = document.createElement('a');
+      link.download = 'stiker-teks.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    });
+
+    // Render awal
+    drawSticker();
+  </script>
+</body>
+</html>
