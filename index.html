@@ -257,9 +257,111 @@
       font-size: 12.5px;
       margin-top: 32px;
     }
+
+    /* Popup */
+    .popup-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(6px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 9999;
+    }
+
+    .popup-content {
+      position: relative;
+      max-width: min(90vw, 600px);
+      max-height: 92vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .popup-image {
+      width: auto;
+      height: auto;
+      max-width: 90vw;
+      max-height: 82vh;
+      aspect-ratio: 4 / 5;
+      object-fit: contain;
+      display: block;
+      border-radius: var(--radius);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+    }
+
+    .popup-close {
+      position: absolute;
+      top: -12px;
+      right: -12px;
+      width: 38px;
+      height: 38px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 50%;
+      background: var(--surface-2);
+      color: var(--text);
+      font-size: 24px;
+      line-height: 1;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2;
+    }
+
+    .popup-close:hover {
+      background: #2a2a31;
+    }
+
+    .popup-option {
+      margin-top: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-dim);
+      font-size: 13px;
+      user-select: none;
+    }
+
+    .popup-option input {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--pink);
+      cursor: pointer;
+    }
+
+    .popup-option label {
+      cursor: pointer;
+    }
+
+    .popup-overlay.hidden {
+      display: none;
+    }
+
   </style>
 </head>
 <body>
+
+
+  <!-- Popup -->
+  <div class="popup-overlay" id="popupOverlay">
+    <div class="popup-content">
+      <button class="popup-close" id="popupClose" type="button" aria-label="Tutup">&times;</button>
+
+      <img
+        class="popup-image"
+        src="assets/popup.png"
+        alt="Popup"
+      >
+
+      <div class="popup-option">
+        <input type="checkbox" id="dontShowAgain">
+        <label for="dontShowAgain">Jangan tampilkan ini lagi</label>
+      </div>
+    </div>
+  </div>
 
   <div class="container">
     <iframe class="banner-frame" src="banner.html" title="Banner" scrolling="no"></iframe>
@@ -347,6 +449,33 @@
 
     // Terapkan mode tersimpan (default: list)
     applyView(localStorage.getItem(STORAGE_KEY) || 'list');
+
+    // Popup
+    const popupOverlay = document.getElementById('popupOverlay');
+    const popupClose = document.getElementById('popupClose');
+    const dontShowAgain = document.getElementById('dontShowAgain');
+    const POPUP_STORAGE_KEY = 'loyaltyToolsPopupHidden';
+
+    function closePopup() {
+      if (dontShowAgain.checked) {
+        localStorage.setItem(POPUP_STORAGE_KEY, 'true');
+      }
+
+      popupOverlay.classList.add('hidden');
+    }
+
+    popupClose.addEventListener('click', closePopup);
+
+    popupOverlay.addEventListener('click', (event) => {
+      if (event.target === popupOverlay) {
+        closePopup();
+      }
+    });
+
+    if (localStorage.getItem(POPUP_STORAGE_KEY) === 'true') {
+      popupOverlay.classList.add('hidden');
+    }
+
   </script>
 
 </body>
